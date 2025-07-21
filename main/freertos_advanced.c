@@ -4,6 +4,47 @@
  * This demo shows advanced FreeRTOS features: software timers and event groups.
  * A software timer toggles the LED every second. Two tasks wait for the timer event using an event group.
  *
+ * ---
+ * WHAT are Software Timers and Event Groups?
+ *
+ * - Software Timer: A FreeRTOS object that calls a function (callback) at a set interval or after a delay, managed by the RTOS (not hardware).
+ *   - Example: Toggle an LED every 1 second, or trigger a periodic task.
+ *
+ * - Event Group: A FreeRTOS object for synchronizing tasks using bits (flags). Tasks can wait for one or more bits to be set by other tasks or ISRs.
+ *   - Example: Multiple tasks wait for a "ready" signal, or for several events to occur before proceeding.
+ *
+ * ---
+ * WHY use Software Timers and Event Groups?
+ *
+ * - Software Timers:
+ *   - Avoids using hardware timers for simple periodic actions.
+ *   - Lets you schedule actions without blocking a task (no vTaskDelay needed).
+ *   - Useful for timeouts, periodic checks, or delayed actions.
+ *
+ * - Event Groups:
+ *   - Allows multiple tasks to synchronize on events (e.g., all must wait for a resource to be ready).
+ *   - Efficiently signals many tasks at once (broadcast events).
+ *   - Can wait for multiple conditions to be true before proceeding.
+ *
+ * ---
+ * WHEN to use them?
+ *
+ * - Use a Software Timer when:
+ *   - You need to run code at regular intervals, but don't want a dedicated task just for timing.
+ *   - You want to trigger an action after a delay (e.g., timeout, retry).
+ *   - You want to avoid blocking tasks with vTaskDelay for periodic actions.
+ *
+ * - Use an Event Group when:
+ *   - You need to synchronize two or more tasks on one or more events.
+ *   - You want to signal multiple tasks at once (e.g., "start now!").
+ *   - You need to wait for several conditions to be true before proceeding.
+ *
+ * ---
+ * ADVANTAGES:
+ * - Software timers save CPU and memory by sharing a timer task for many timers.
+ * - Event groups are more efficient than polling or using many semaphores for multi-task sync.
+ *
+ * ---
  * Concepts covered:
  * - Software timers
  * - Event groups for task synchronization
