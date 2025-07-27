@@ -46,11 +46,12 @@
  *
  * ---
  * Concepts covered:
- * - Software timers
+ * - Software timers creation and management
  * - Event groups for task synchronization
- * - Task creation
- * - GPIO output
+ * - Task creation and scheduling
+ * - GPIO output control
  * - Print/log statements
+ * - Timer callbacks and event signaling
  */
 #include "freertos_advanced.h"
 #include <stdio.h>
@@ -72,28 +73,38 @@ static EventGroupHandle_t sync_event_group;
 static TimerHandle_t blink_timer;
 
 // Timer callback: toggles the LED and sets the event bit
+// NOTE: Timer callbacks run in the timer daemon task context, not in ISR context
 static void advanced_timer_callback(TimerHandle_t xTimer) {
     static int led_state = 0;
     led_state = !led_state;
     gpio_set_level(ADVANCED_BLINK_GPIO, led_state); // Toggle LED
     ESP_LOGI(TAG_ADVANCED, "Timer: LED %s", led_state ? "ON" : "OFF");
-    // Set event bit to notify tasks
+    
+    // FreeRTOS API: xEventGroupSetBits - Sets one or more bits in an event group
+    // Parameters: event group handle, bits to set
+    // NOTE: This will wake up any tasks waiting for these bits
     xEventGroupSetBits(sync_event_group, ADVANCED_EVENT_BIT);
 }
 
 // Task 1: Waits for the event bit and logs when LED toggles
+// NOTE: This task demonstrates waiting for events using event groups
 static void advanced_task1(void *pvParameter) {
     while (1) {
-        // Wait for the event bit to be set by the timer
+        // FreeRTOS API: xEventGroupWaitBits - Waits for one or more bits to be set
+        // Parameters: event group handle, bits to wait for, clear bits after wait, wait for all bits, timeout
+        // NOTE: pdTRUE for clear means bits are cleared after this task reads them
         xEventGroupWaitBits(sync_event_group, ADVANCED_EVENT_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
         ESP_LOGI(TAG_ADVANCED, "Task1: Detected LED toggle event");
     }
 }
 
 // Task 2: Waits for the event bit and logs when LED toggles
+// NOTE: This task also waits for the same event, demonstrating multi-task synchronization
 static void advanced_task2(void *pvParameter) {
     while (1) {
-        // Wait for the event bit to be set by the timer
+        // FreeRTOS API: xEventGroupWaitBits - Waits for one or more bits to be set
+        // Parameters: event group handle, bits to wait for, clear bits after wait, wait for all bits, timeout
+        // NOTE: Both tasks will be woken when the timer sets the event bit
         xEventGroupWaitBits(sync_event_group, ADVANCED_EVENT_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
         ESP_LOGI(TAG_ADVANCED, "Task2: Detected LED toggle event");
     }
@@ -105,13 +116,25 @@ void freertos_advanced_demo(void) {
     // Configure LED GPIO as output
     gpio_reset_pin(ADVANCED_BLINK_GPIO);
     gpio_set_direction(ADVANCED_BLINK_GPIO, GPIO_MODE_OUTPUT);
-    // Create event group for task synchronization
+    
+    // FreeRTOS API: xEventGroupCreate - Creates a new event group
+    // Parameters: none (event groups are always created with all bits clear)
+    // NOTE: Event groups use bits (flags) for synchronization
     sync_event_group = xEventGroupCreate();
-    // Create a periodic software timer (1 second)
+    
+    // FreeRTOS API: xTimerCreate - Creates a software timer
+    // Parameters: timer name, period in ticks, auto-reload flag, timer ID, callback function
+    // NOTE: pdTRUE for auto-reload means timer restarts automatically after each callback
     blink_timer = xTimerCreate("blink_timer", pdMS_TO_TICKS(1000), pdTRUE, NULL, advanced_timer_callback);
-    // Create two tasks that wait for the event bit
+    
+    // FreeRTOS API: xTaskCreate - Creates tasks that wait for events
+    // Parameters: task function, task name, stack size, parameters, priority, task handle
+    // NOTE: Both tasks have same priority and will be scheduled when events occur
     xTaskCreate(advanced_task1, "advanced_task1", 2048, NULL, 5, NULL);
     xTaskCreate(advanced_task2, "advanced_task2", 2048, NULL, 5, NULL);
-    // Start the timer
+    
+    // FreeRTOS API: xTimerStart - Starts the software timer
+    // Parameters: timer handle, block time (0 = non-blocking)
+    // NOTE: Timer will start immediately and call the callback every 1000ms
     xTimerStart(blink_timer, 0);
 } 
